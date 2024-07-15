@@ -5,6 +5,16 @@
 #include <Avatar.h>
 #include "fft.hpp"
 #include <cinttypes>
+
+#include <Toio.h>
+// Toio オブジェクト生成
+Toio toio;
+ToioCore* toiocore = nullptr;
+uint default_angle = 0;
+uint default_posx = 0;
+uint default_posy = 0;
+
+
 #if defined(ARDUINO_M5STACK_CORES3)
   #include <gob_unifiedButton.hpp>
   goblib::UnifiedButton unifiedButton;
@@ -46,6 +56,7 @@ void lipsync() {
   
   size_t bytesread;
   uint64_t level = 0;
+  float gazeX, gazeY;
 #ifndef SDL_h_
   if ( M5.Mic.record(rec_data, WAVE_SIZE, record_samplerate)) {
     fft.exec(rec_data);
@@ -86,6 +97,21 @@ void lipsync() {
   float ratio = 0.0f;
 #endif
   avatar.setMouthOpenRatio(ratio);
+  toiocore->turnOnLed(int(0xff * ratio), 0x00, 0x00);
+  avatar.getGaze(&gazeY, &gazeX);
+  int degx = default_angle + (int) 20.0 * gazeX;
+  if (degx > 360) 
+    degx = degx - 360;
+  else if(degx < 0 )
+    degx = degx + 360;
+  int tmp = 0;
+  if(gazeY < 0) {
+    tmp = (int)(15.0 * gazeY + ratio * 15.0);
+    if(tmp > 15) tmp = 15;
+  } else {
+    tmp = (int)(10.0 * gazeY - ratio * 15.0);
+  }    
+  toiocore->controlMotorWithTarget(0, 5, 0, 30, 0x03, default_posx, default_posy + tmp, degx);
   
 }
 
@@ -194,6 +220,35 @@ void setup()
   M5.Mic.begin();
 #endif
   M5.Speaker.end();
+  // 3 秒間 Toio Core Cube をスキャン
+  M5_LOGI("Scanning your toio core...");
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  size_t n = toiocore_list.size();
+  if (n == 0) {
+    M5_LOGI("No toio Core Cube was found. Turn on your Toio Core Cube, then press the reset button of your Toio Core Cube.");
+    return;
+  }
+
+  // 最初に見つかった Toio Core Cube の ToioCore オブジェクト
+  toiocore = toiocore_list.at(0);
+  M5_LOGI("Your toio core was found:      ");
+
+  // Toio Core のデバイス名と MAC アドレスを表示
+  M5_LOGI("%s %s", toiocore->getName(), toiocore->getAddress());
+
+  // BLE 接続開始
+  M5_LOGI("Connecting...");
+
+  if (!toiocore->connect()) {
+    M5_LOGI("Failed to establish a BLE connection.");
+    return;
+  }
+  M5_LOGI("toio Connected.");
+  ToioCoreIDData pos = toiocore->getIDReaderData();
+  default_angle = pos.position.cubeAngleDegree;
+  default_posx = pos.position.cubePosX;
+  default_posy = pos.position.cubePosY;
+  M5_LOGI("default pos (%u, %u) angle %u\n", default_posx, default_posy, default_angle);
 
   M5.Display.setRotation(display_rotation);
   avatar.setScale(scale);
