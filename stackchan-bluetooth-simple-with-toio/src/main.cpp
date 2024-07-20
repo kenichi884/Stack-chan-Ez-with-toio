@@ -15,14 +15,25 @@
 #include "Avatar.h"
 #include "Stackchan_Takao_Base.hpp"
 
+#define USE_TOIO 1
+#ifdef USE_TOIO
+#include <Toio.h>
+// Toio オブジェクト生成
+Toio toio;
+ToioCore* toiocore = nullptr;
+uint default_angle = 0;
+uint default_posx = 0;
+uint default_posy = 0;
+#endif
+
 using namespace m5avatar;
 Avatar avatar;
-StackchanSERVO servo;
+;;StackchanSERVO servo;
 
 #include "Stackchan_system_config.h"
 
 // M5GoBottomのLEDを使わない場合は下記の1行をコメントアウトしてください。
-#define USE_LED
+//#define USE_LED
 
 #ifdef USE_LED
   #include <FastLED.h>
@@ -150,6 +161,34 @@ void servoLoop(void *args) {
     // Y軸は90°から上にスイング（最大35°）
     move_y = system_config.getServoInfo(AXIS_Y)->start_degree - mouth_ratio * 10 - abs(25.0 * gaze_y);
     servo.moveXY(move_x, move_y, move_time);
+  #ifdef USE_TOIO
+    int degx = default_angle + mouth_ratio * 15 + (int)(30.0 * gaze_x);
+    if (degx > 360) 
+      degx = degx - 360;
+    else if(degx < 0 )
+      degx = degx + 360;
+    int d = mouth_ratio * 10 - abs(25.0 * gaze_y);
+    d = d / 2;
+    Serial.printf("degx %d, d %d, movetime %d\n", degx, d, move_time);
+    int spd = 24000 / move_time;
+    if(spd < 10) spd = 10; 
+    if(sing_mode){
+      ToioCoreTargetPos pos[2];
+      pos[0].posX = default_posx + d;
+      pos[0].posY = default_posy;
+      pos[0].angleDegree = degx;
+      pos[0].angleAndRotation = 0;
+      pos[1].posX = default_posx + d + 5;
+      pos[1].posY = default_posy;
+      pos[1].angleDegree = degx;
+      pos[1].angleAndRotation = 0;
+
+      toiocore->controlMotorWithMultipleTargets(0, 5, 0, spd, 0x03, 0, 2, pos);
+    } else {
+       toiocore->controlMotorWithTarget(0, 5, 0, spd /* 30 */, 0x03, default_posx + d, default_posy, degx);
+    }
+   
+  #endif
     if (!bluetooth_mode) {
       int lyric_no = random(system_config.getLyrics_num());
       int exp2 = random(2);
@@ -166,6 +205,10 @@ void servoLoop(void *args) {
     if (sing_mode) {
       // 歌っているときはうなずく
       servo.moveXY(move_x, move_y + 10, 400);
+#ifdef USE_TOIO
+      Serial.printf("degx %d, d %d + 5\n", degx, d);
+      //toiocore->controlMotorWithTarget(0, 5, 0, 30, 0x03, default_posx + d, default_posy, degx);
+#endif
     }
     vTaskDelay(interval_time/portTICK_PERIOD_MS);
   }
@@ -217,6 +260,11 @@ void lipSync(void *args)
       }
       mouth_ratio = 1.2f;
     }
+#ifdef USE_TOIO
+    float mouth_ratio_toio = mouth_ratio / 1.2f;
+    //Serial.printf("mouth_ratio_toio %f\n", mouth_ratio_toio);
+    toiocore->turnOnLed(int(0xff * mouth_ratio_toio), 0x00, 0x00);
+#endif
     avatar->setMouthOpenRatio(mouth_ratio);
     vTaskDelay(30/portTICK_PERIOD_MS);
   }
@@ -268,10 +316,10 @@ void setup(void)
     /// Increasing the sample_rate will improve the sound quality instead of increasing the CPU load.
 #ifndef ARDUINO_M5Stack_Core_ESP32
     // M5Stack Fire/Core2/AWS 向けPSRAM搭載機種のパラメータ
-    spk_cfg.sample_rate = 96000; // default:64000 (64kHz)  e.g. 48000 , 50000 , 80000 , 96000 , 100000 , 128000 , 144000 , 192000 , 200000
+    spk_cfg.sample_rate = 32000; // 96000; // default:64000 (64kHz)  e.g. 48000 , 50000 , 80000 , 96000 , 100000 , 128000 , 144000 , 192000 , 200000
     spk_cfg.task_pinned_core = APP_CPU_NUM;
     // spk_cfg.task_priority = configMAX_PRIORITIES - 2;
-    spk_cfg.dma_buf_count = 20;
+    spk_cfg.dma_buf_count = 10; // 20;
     //spk_cfg.stereo = true;
     spk_cfg.dma_buf_len = 256;
 #else
@@ -326,6 +374,48 @@ void setup(void)
               system_config.getServoInfo(AXIS_Y)->pin, system_config.getServoInfo(AXIS_Y)->start_degree,
               system_config.getServoInfo(AXIS_Y)->offset,
               (ServoType)system_config.getServoType());
+
+#ifdef USE_TOIO
+  // 3 秒間 Toio Core Cube をスキャン
+  M5.Display.setTextSize(2); 
+  // 3 秒間 Toio Core Cube をスキャン
+  M5_LOGI("Scanning your toio core...");
+  M5.Display.setCursor(0, 0);
+  M5.Display.println("Scanning your toio core...");
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  size_t n = toiocore_list.size();
+  if (n == 0) {
+    M5_LOGI("No toio Core Cube was found. Turn on your Toio Core Cube, then press the reset button of your Toio Core Cube.");
+    M5.Display.println("No toio Core Cube was found.");
+    return;
+  }
+
+  // 最初に見つかった Toio Core Cube の ToioCore オブジェクト
+  toiocore = toiocore_list.at(0);
+  M5_LOGI("Your toio core was found:      ");
+  M5.Display.println("No toio Core Cube was found.");
+
+  // Toio Core のデバイス名と MAC アドレスを表示
+  M5_LOGI("%s %s", toiocore->getName(), toiocore->getAddress());
+  M5.Display.printf("%s %s\n", toiocore->getName().c_str(), toiocore->getAddress().c_str());
+
+  // BLE 接続開始
+  M5_LOGI("Connecting...");
+  M5.Display.println("Connecting...");
+
+  if (!toiocore->connect()) {
+    M5_LOGI("Failed to establish a BLE connection.");
+    M5.Display.println("Connection failed");
+    return;
+  }
+  M5_LOGI("toio Connected.");
+  M5.Display.println("toio Connected.");
+  ToioCoreIDData pos = toiocore->getIDReaderData();
+  default_angle = pos.position.cubeAngleDegree;
+  default_posx = pos.position.cubePosX;
+  default_posy = pos.position.cubePosY;
+  Serial.printf("default pos (%u, %u) angle %u\n", default_posx, default_posy, default_angle);
+#endif
   delay(2000);
 
   avatar.init(1); // start drawing
