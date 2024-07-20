@@ -14,7 +14,6 @@ uint default_angle = 0;
 uint default_posx = 0;
 uint default_posy = 0;
 
-
 #if defined(ARDUINO_M5STACK_CORES3)
   #include <gob_unifiedButton.hpp>
   goblib::UnifiedButton unifiedButton;
@@ -220,30 +219,39 @@ void setup()
   M5.Mic.begin();
 #endif
   M5.Speaker.end();
+  M5.Display.setTextSize(2); 
   // 3 秒間 Toio Core Cube をスキャン
   M5_LOGI("Scanning your toio core...");
+  M5.Display.setCursor(0, 0);
+  M5.Display.println("Scanning your toio core...");
   std::vector<ToioCore*> toiocore_list = toio.scan(3);
   size_t n = toiocore_list.size();
   if (n == 0) {
     M5_LOGI("No toio Core Cube was found. Turn on your Toio Core Cube, then press the reset button of your Toio Core Cube.");
+    M5.Display.println("No toio Core Cube was found.");
     return;
   }
 
   // 最初に見つかった Toio Core Cube の ToioCore オブジェクト
   toiocore = toiocore_list.at(0);
   M5_LOGI("Your toio core was found:      ");
+  M5.Display.println("No toio Core Cube was found.");
 
   // Toio Core のデバイス名と MAC アドレスを表示
   M5_LOGI("%s %s", toiocore->getName(), toiocore->getAddress());
+  M5.Display.printf("%s %s\n", toiocore->getName().c_str(), toiocore->getAddress().c_str());
 
   // BLE 接続開始
   M5_LOGI("Connecting...");
+  M5.Display.println("Connecting...");
 
   if (!toiocore->connect()) {
     M5_LOGI("Failed to establish a BLE connection.");
+    M5.Display.println("Connection failed");
     return;
   }
   M5_LOGI("toio Connected.");
+  M5.Display.println("toio Connected.");
   ToioCoreIDData pos = toiocore->getIDReaderData();
   default_angle = pos.position.cubeAngleDegree;
   default_posx = pos.position.cubePosX;
