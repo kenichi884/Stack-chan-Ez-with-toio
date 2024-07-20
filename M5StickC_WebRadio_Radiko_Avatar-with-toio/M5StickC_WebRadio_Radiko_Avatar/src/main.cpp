@@ -15,6 +15,14 @@
 #include <WebRadio_Radiko.h>
 #include <AudioOutputM5Speaker.h>
 
+#include <Toio.h>
+// Toio オブジェクト生成
+Toio toio;
+ToioCore* toiocore = nullptr;
+uint default_angle = 0;
+uint default_posx = 0;
+uint default_posy = 0;
+
 #include "Avatar.h"
 //#include "AtaruFace.h"
 #include "RamFace.h"
@@ -447,9 +455,24 @@ void lipSync(void *args)
       level = 15000;
     }
     float open = (float)level/15000.0;
+    toiocore->turnOnLed(int(0xff * open), 0x00, 0x00);
     avatar->setMouthOpenRatio(open);
     avatar->getGaze(&gazeY, &gazeX);
     avatar->setRotation(gazeX * 5);
+    
+    int degx = default_angle + (int) 20.0 * gazeX;
+    if (degx > 360) 
+      degx = degx - 360;
+    else if(degx < 0 )
+      degx = degx + 360;
+    int tmp = 0;
+    if(gazeY < 0) {
+      tmp = (int)(15.0 * gazeY + open * 15.0);
+      if(tmp > 15) tmp = 15;
+    } else {
+      tmp = (int)(10.0 * gazeY - open * 15.0);
+    }    
+    toiocore->controlMotorWithTarget(0, 5, 0, 30, 0x03, default_posx, default_posy + tmp, degx);
      delay(50);
   }
 }
@@ -528,12 +551,22 @@ void Wifi_setup() {
 
 void Avatar_setup() {
 //    avatar = new Avatar(new AtaruFace());
+/*
   avatar = new Avatar(new RamFace());
   ColorPalette cp;
   cp.set(COLOR_PRIMARY, PC_BLACK);  //
   cp.set(COLOR_BACKGROUND, PC_WHITE);
   cp.set(COLOR_SECONDARY, PC_WHITE);
-  avatar->setColorPalette(cp);
+  */
+ avatar = new Avatar();
+  ColorPalette cp;
+  cp.set(COLOR_PRIMARY, PC_WHITE);  //
+  cp.set(COLOR_BACKGROUND, PC_BLACK);
+  cp.set(COLOR_SECONDARY, PC_BLACK);
+   avatar->setColorPalette(cp);
+
+  
+  
   switch (M5.getBoard())
   {
     case m5::board_t::board_M5StickCPlus:
@@ -590,7 +623,7 @@ void setup(void)
     auto spk_cfg = M5.Speaker.config();
     /// Increasing the sample_rate will improve the sound quality instead of increasing the CPU load.
     //spk_cfg.sample_rate = 144000; // default:64000 (64kHz)  e.g. 48000 , 50000 , 80000 , 96000 , 100000 , 128000 , 144000 , 192000 , 200000
-    spk_cfg.sample_rate = 96000; // default:64000 (64kHz)  e.g. 48000 , 50000 , 80000 , 96000 , 100000 , 128000 , 144000 , 192000 , 200000
+    spk_cfg.sample_rate =  32000;// 96000; // default:64000 (64kHz)  e.g. 48000 , 50000 , 80000 , 96000 , 100000 , 128000 , 144000 , 192000 , 200000
     spk_cfg.task_pinned_core = m5spk_task_pinned_core;
     M5.Speaker.config(spk_cfg);
   }
@@ -693,11 +726,52 @@ void setup(void)
   Serial.print("IP address:");
   Serial.println(WiFi.localIP());  
 */
+
+  M5.Display.setTextSize(2); 
+  // 3 秒間 Toio Core Cube をスキャン
+  M5_LOGI("Scanning your toio core...");
+  M5.Display.setCursor(0, 0);
+  M5.Display.println("Scanning your toio core...");
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  size_t n = toiocore_list.size();
+  if (n == 0) {
+    M5_LOGI("No toio Core Cube was found. Turn on your Toio Core Cube, then press the reset button of your Toio Core Cube.");
+    M5.Display.println("No toio Core Cube was found.");
+    return;
+  }
+
+  // 最初に見つかった Toio Core Cube の ToioCore オブジェクト
+  toiocore = toiocore_list.at(0);
+  M5_LOGI("Your toio core was found:      ");
+  M5.Display.println("No toio Core Cube was found.");
+
+  // Toio Core のデバイス名と MAC アドレスを表示
+  M5_LOGI("%s %s", toiocore->getName(), toiocore->getAddress());
+  M5.Display.printf("%s %s\n", toiocore->getName().c_str(), toiocore->getAddress().c_str());
+
+  // BLE 接続開始
+  M5_LOGI("Connecting...");
+  M5.Display.println("Connecting...");
+
+  if (!toiocore->connect()) {
+    M5_LOGI("Failed to establish a BLE connection.");
+    M5.Display.println("Connection failed");
+    return;
+  }
+  M5_LOGI("toio Connected.");
+  M5.Display.println("toio Connected.");
+  ToioCoreIDData pos = toiocore->getIDReaderData();
+  default_angle = pos.position.cubeAngleDegree;
+  default_posx = pos.position.cubePosX;
+  default_posy = pos.position.cubePosY;
+  Serial.printf("default pos (%u, %u) angle %u\n", default_posx, default_posy, default_angle);
+
   M5.Display.clear();
 
   gfxSetup(&M5.Display);
 //  M5.Display.fillRect(0, 61, M5.Display.width(), M5.Display.height(), TFT_WHITE);
-  M5.Display.fillRect(0, M5.Display.height()/4+1, M5.Display.width(), M5.Display.height(), TFT_WHITE);
+  //M5.Display.fillRect(0, M5.Display.height()/4+1, M5.Display.width(), M5.Display.height(), TFT_WHITE);
+  M5.Display.fillRect(0, M5.Display.height()/4+1, M5.Display.width(), M5.Display.height(), TFT_BLACK);
 
 // radiko
   radio.onPlay = [](const char * station_name, const size_t station_idx) {
