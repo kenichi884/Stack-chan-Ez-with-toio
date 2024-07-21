@@ -1,4 +1,17 @@
-# M5Unified_StackChan_Radiko
+# M5Unified_StackChan_Radiko-with-toio
+
+kenichi884追加箇所開始 
+
+toio core cubeと組み合わせて使うことで、Avatarの動きに合わせてtoio core cubeが動きます。<br>
+toio用のマットが必要です。起動時にマットの位置を読み取ってそこを中心に首振りや前後移動します。<br>
+  https://protopedia.net/prototype/5496 <br>
+オリジナルと違ってPSRAM搭載の機種でないと動きません。(Core2、CoreS3で動作確認しています)<br>
+また、2024.07.20時点でM5Burner用イメージは公開していません。
+
+ kenichi884追加箇所終わり 以下、オリジナルのREADME
+
+---
+
 WebRadio Radikoプレイヤー付きｽﾀｯｸﾁｬﾝです。
 
 

@@ -377,8 +377,6 @@ void setup(void)
 
 #ifdef USE_TOIO
   // 3 秒間 Toio Core Cube をスキャン
-  M5.Display.setTextSize(2); 
-  // 3 秒間 Toio Core Cube をスキャン
   M5_LOGI("Scanning your toio core...");
   M5.Display.setCursor(0, 0);
   M5.Display.println("Scanning your toio core...");

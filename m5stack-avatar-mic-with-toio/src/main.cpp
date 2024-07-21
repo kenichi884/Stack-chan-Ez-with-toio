@@ -219,7 +219,6 @@ void setup()
   M5.Mic.begin();
 #endif
   M5.Speaker.end();
-  M5.Display.setTextSize(2); 
   // 3 秒間 Toio Core Cube をスキャン
   M5_LOGI("Scanning your toio core...");
   M5.Display.setCursor(0, 0);

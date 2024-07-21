@@ -3,7 +3,7 @@
 //#define RADIKO_USER "SET YOUR MAIL-ADDRESS"
 //#define RADIKO_PASS "SET YOUR PREMIUM PASS"
 
-#define USE_SERVO
+//#define USE_SERVO
 #ifdef USE_SERVO
 //#define SERVO_PIN_X 13
 //#define SERVO_PIN_Y 14
@@ -11,6 +11,10 @@
 #define SERVO_PIN_Y 32
 #include <ServoEasing.hpp> // https://github.com/ArminJo/ServoEasing       
 #endif
+#include <Toio.h>
+// Toio オブジェクト生成
+Toio toio;
+ToioCore* toiocore = nullptr;
 
 #include <math.h>
 #include <WiFi.h>
@@ -459,6 +463,9 @@ bool servo_home = false;
 #endif
 bool levelMeter = true;
 bool balloon = false;
+uint default_angle = 0;
+uint default_posx = 0;
+uint default_posy = 0;
 
 void behavior(void *args)
 {
@@ -476,12 +483,28 @@ void behavior(void *args)
     }
     float open = (float)level/15000.0;
     avatar->setMouthOpenRatio(open);
+    toiocore->turnOnLed(int(0xff * open), 0x00, 0x00);
     avatar->getGaze(&gazeY, &gazeX);
     if(!balloon){
       avatar->setRotation(gazeX * 5);
     } else {
       avatar->setRotation(0.0);
     }
+
+    int degx = default_angle + (int) 20.0 * gazeX;
+    if (degx > 360) 
+      degx = degx - 360;
+    else if(degx < 0 )
+      degx = degx + 360;
+    int tmp = 0;
+    if(gazeY < 0) {
+      tmp = (int)(15.0 * gazeY + open * 15.0);
+      if(tmp > 15) tmp = 15;
+    } else {
+      tmp = (int)(10.0 * gazeY - open * 15.0);
+    }    
+    toiocore->controlMotorWithTarget(0, 5, 0, 30, 0x03, default_posx, default_posy + tmp, degx);
+
 #ifdef USE_SERVO
     if(!servo_home)
     {
@@ -503,6 +526,7 @@ void behavior(void *args)
   }
 }
 
+
 void Servo_setup() {
 #ifdef USE_SERVO
   if (servo_x.attach(SERVO_PIN_X, START_DEGREE_VALUE_X, DEFAULT_MICROSECONDS_FOR_0_DEGREE, DEFAULT_MICROSECONDS_FOR_180_DEGREE)) {
@@ -515,6 +539,46 @@ void Servo_setup() {
   servo_y.setEasingType(EASE_QUADRATIC_IN_OUT);
   setSpeedForAllServos(30);
 #endif
+  // 3 秒間 Toio Core Cube をスキャン
+  M5_LOGI("Scanning your toio core...");
+  M5.Display.setCursor(0, 0);
+  M5.Display.println("Scanning your toio core...");
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  size_t n = toiocore_list.size();
+  if (n == 0) {
+    M5_LOGI("No toio Core Cube was found. Turn on your Toio Core Cube, then press the reset button of your Toio Core Cube.");
+    M5.Display.println("No toio Core Cube was found.");
+    return;
+  }
+
+  // 最初に見つかった Toio Core Cube の ToioCore オブジェクト
+  toiocore = toiocore_list.at(0);
+  M5_LOGI("Your toio core was found:      ");
+  M5.Display.println("No toio Core Cube was found.");
+
+  // Toio Core のデバイス名と MAC アドレスを表示
+  M5_LOGI("%s %s", toiocore->getName(), toiocore->getAddress());
+  M5.Display.printf("%s %s\n", toiocore->getName().c_str(), toiocore->getAddress().c_str());
+
+  // BLE 接続開始
+  M5_LOGI("Connecting...");
+  M5.Display.println("Connecting...");
+
+  if (!toiocore->connect()) {
+    M5_LOGI("Failed to establish a BLE connection.");
+    M5.Display.println("Connection failed");
+    return;
+  }
+  M5_LOGI("toio Connected.");
+  M5.Display.println("toio Connected.");
+  ToioCoreIDData pos = toiocore->getIDReaderData();
+  default_angle = pos.position.cubeAngleDegree;
+  default_posx = pos.position.cubePosX;
+  default_posy = pos.position.cubePosY;
+  Serial.printf("default pos (%u, %u) angle %u\n", default_posx, default_posy, default_angle);
+  delay(3000);
+  M5.Display.clear();
+
 }
 
 void Wifi_setup() {

@@ -5,14 +5,18 @@
 # 概要
 
 kenichi884追加箇所開始
-toio core cubeと組み合わせて使うことで、Avatarの動きに合わせてtoio core cubeが動きます。
-toio用のマットが必要です。起動時にマットの位置を読み取ってそこを中心に首振りや前後移動します。
-https://protopedia.net/prototype/5496
-NimBLEだとClassic Bluetooth A2DPが使えないので、ビルドする前に
-.pio/libdeps/m5stack-core2/M5StackToio/src/toioCore.h の #define USE_NIMBLE 1 をコメントアウトしてください。
-//#define USE_NIMBLE 1
-Core2/Core Basicで動作確認しました。Bluetooth A2DPを使うのでS3系では使えません。
-kenichi884追加箇所終わり
+
+toio core cubeと組み合わせて使うことで、Avatarの動きに合わせてtoio core cubeが動きます。<br>
+toio用のマットが必要です。起動時にマットの位置を読み取ってそこを中心に首振りや前後移動します。<Br>
+https://protopedia.net/prototype/5496<br>
+NimBLEだとClassic Bluetooth A2DPが使えないので、ビルドする前に<br>
+.pio/libdeps/m5stack-core2/M5StackToio/src/toioCore.h の #define USE_NIMBLE 1 をコメントアウトしてください。<Br>
+//#define USE_NIMBLE 1<Br>
+Core2/Core Basicで動作確認しました。Bluetooth A2DPを使うのでS3系では使えません。<Br>
+
+kenichi884追加箇所終わり 以下、オリジナルのREADME
+
+---
 
 M5Stack-AvatarをベースにシンプルにBluetoothスピーカー機能とスタックチャンのサーボコントロール機能をつけました。
 [M5Unified](https://github.com/m5stack/M5Unified)のexampleであるBluetooth_with_ESP32A2DPをベースに改造しています。

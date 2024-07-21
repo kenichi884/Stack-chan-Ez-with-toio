@@ -5,14 +5,20 @@
 # Overview 
 
 kenichi884 added part started
-By using it in combination with toio core cube, toio core cube moves according to the movement of Avatar.
-I need a mat for toio. When it starts up, it reads the position of the mat and swings its head or moves back and forth around that point.
-https://protopedia.net/prototype/5496
-Classic Bluetooth A2DP cannot be used with NimBLE, so before building
-Comment out #define USE_NIMBLE 1 in .pio/libdeps/m5stack-core2/M5StackToio/src/toioCore.h.
-//#define USE_NIMBLE 1
-Operation has been confirmed with Core2/Core Basic. Since it uses Bluetooth A2DP, it cannot be used with the S3 series.
+
+By using it in combination with toio core cube, toio core cube moves according to the movement of Avatar.<br>
+I need a mat for toio. When it starts up, it reads the position of the mat and swings its head or moves back and forth around that point.<Br>
+https://protopedia.net/prototype/5496<br>
+Classic Bluetooth A2DP cannot be used with NimBLE, so before building<br>
+Comment out #define USE_NIMBLE 1 in .pio/libdeps/m5stack-core2/M5StackToio/src/toioCore.h.<br>
+//#define USE_NIMBLE 1<br>
+Operation has been confirmed with Core2/Core Basic. Since it uses Bluetooth A2DP, it cannot be used with the S3 series.<br>
+
 kenichi884 end of addition
+
+Below is the original text.
+
+---
 
 Based on the M5Stack-Avatar, a simple Bluetooth speaker function and servo control function for the stack chan are added.
 It is modified based on Bluetooth_with_ESP32A2DP, which is an example of [M5Unified](https://github.com/m5stack/M5Unified).
